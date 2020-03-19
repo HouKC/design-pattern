@@ -55,7 +55,7 @@ class NewHandler(tornado.web.RequestHandler):
         name = self.get_argument('name', None)
         query = "create table if not exists task (id INTEGER PRIMARY KEY, name TEXT, status NUMERIC)"
         _execute(query)
-        query = "insert into task (name, status) values ('%s, %d) " % (name, 1)
+        query = "insert into task (name, status) values ('%s', %d) " % (name, 1)
         _execute(query)
         self.redirect('/')
 
@@ -73,3 +73,37 @@ class DeleteHandler(tornado.web.RequestHandler):
         query = "delete from task where id=%s" % id
         _execute(query)
         self.redirect('/')
+
+class RunApp(tornado.web.Application):
+    def __init__(self):
+        Handlers = [
+            (r'/', IndexHandler),
+            (r'/todo/new', NewHandler),
+            (r'/todo/update/(\d+)/(\d+)', UpdateHandler),
+            (r'/todo/delete/(\d+)', DeleteHandler),
+        ]
+        settings = dict(
+            debug=True,
+            template_path='templates',
+            static_path="static",
+        )
+        tornado.web.Application.__init__(self, Handlers, **settings)
+
+
+conn = sqlite3.connect('db.sqlite3')
+
+def _execute(query):
+    c = conn.cursor()
+    tt = c.execute(query)
+    conn.commit()
+    todos = []
+    for t in tt:
+        todos.append(t)
+    return todos
+
+
+if __name__ == "__main__":
+    http_server = tornado.httpserver.HTTPServer(RunApp())
+    http_server.listen(5000)
+    tornado.ioloop.IOLoop.instance().start()
+    conn.close()
